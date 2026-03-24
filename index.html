@@ -424,7 +424,7 @@ async function callClaude(userText) {
 
   // Cloudflare Worker proxy — API key vive en Cloudflare, no aquí
   // Reemplace por su URL real después de deployar
-  const WORKER_URL = 'https://inalcar-proxy.SU-USUARIO.workers.dev';
+  const WORKER_URL = 'https://inalcar-proxy.jzamorat.workers.dev';
   const response = await fetch(WORKER_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
