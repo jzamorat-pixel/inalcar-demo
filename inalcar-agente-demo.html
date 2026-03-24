@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inalcar — Agente WhatsApp IA</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #111b21; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+
+  .phone-wrap { display: flex; gap: 24px; align-items: flex-start; padding: 20px; flex-wrap: wrap; justify-content: center; }
+
+  /* Phone frame */
+  .phone { width: 375px; height: 720px; background: #fff; border-radius: 40px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 30px 80px rgba(0,0,0,0.6); border: 2px solid #333; position: relative; }
+
+  /* Status bar */
+  .status-bar { background: #075e54; padding: 10px 20px 6px; display: flex; justify-content: space-between; align-items: center; }
+  .status-bar span { color: #fff; font-size: 11px; font-weight: 600; }
+
+  /* WA Header */
+  .wa-header { background: #075e54; padding: 8px 14px 10px; display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; background: #25d366; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #fff; font-weight: 700; flex-shrink: 0; }
+  .header-info { flex: 1; }
+  .header-name { color: #fff; font-size: 15px; font-weight: 600; }
+  .header-status { color: #b2dfdb; font-size: 12px; }
+  .header-icons { display: flex; gap: 14px; }
+  .header-icons svg { fill: #fff; opacity: 0.85; cursor: pointer; }
+
+  /* Chat area */
+  .chat-area { flex: 1; overflow-y: auto; padding: 12px 10px; background: #efeae2; display: flex; flex-direction: column; gap: 4px; }
+  .chat-area::-webkit-scrollbar { width: 4px; }
+  .chat-area::-webkit-scrollbar-thumb { background: #b5b5b5; border-radius: 2px; }
+
+  /* Date separator */
+  .date-sep { text-align: center; margin: 8px 0; }
+  .date-sep span { background: #fff; color: #667781; font-size: 11px; padding: 4px 10px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+
+  /* Bubbles */
+  .bubble-row { display: flex; }
+  .bubble-row.client { justify-content: flex-end; }
+  .bubble-row.bot { justify-content: flex-start; }
+  .bubble { max-width: 72%; padding: 7px 10px 5px; border-radius: 8px; position: relative; }
+  .bubble-row.client .bubble { background: #d9fdd3; border-radius: 8px 8px 2px 8px; }
+  .bubble-row.bot .bubble { background: #fff; border-radius: 8px 8px 8px 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+  .bubble-text { font-size: 14px; color: #111; line-height: 1.45; word-wrap: break-word; }
+  .bubble-text strong { font-weight: 600; }
+  .bubble-text em { font-style: italic; color: #555; }
+  .bubble-time { font-size: 11px; color: #8696a0; text-align: right; margin-top: 2px; display: flex; justify-content: flex-end; align-items: center; gap: 3px; }
+  .check { color: #53bdeb; font-size: 13px; }
+
+  /* Car card inside bubble */
+  .car-card { background: #f0f2f5; border-radius: 8px; overflow: hidden; margin-top: 8px; border: 1px solid #e0e0e0; }
+  .car-card-header { background: #075e54; padding: 8px 12px; }
+  .car-card-header span { color: #fff; font-size: 12px; font-weight: 600; }
+  .car-card-body { padding: 10px 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .car-item { background: #fff; border-radius: 6px; padding: 7px 9px; }
+  .car-item-name { font-size: 12px; font-weight: 600; color: #111; }
+  .car-item-price { font-size: 11px; color: #25d366; font-weight: 600; }
+  .car-item-type { font-size: 10px; color: #8696a0; }
+
+  /* Quick replies */
+  .quick-replies { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; padding: 0 10px 8px; }
+  .qr-btn { background: #fff; border: 1.5px solid #25d366; color: #075e54; border-radius: 20px; padding: 6px 14px; font-size: 13px; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+  .qr-btn:hover { background: #e8f5e9; }
+
+  /* Typing */
+  .typing-row { display: flex; justify-content: flex-start; padding-left: 4px; }
+  .typing-bubble { background: #fff; border-radius: 8px; padding: 10px 14px; display: flex; gap: 4px; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #8696a0; animation: bounce 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+
+  /* Processing bar */
+  .proc-bar { background: #fff3cd; border-top: 1px solid #ffc107; padding: 6px 14px; display: flex; align-items: center; gap: 8px; }
+  .proc-bar .spinner { width: 14px; height: 14px; border: 2px solid #ffc107; border-top-color: #ff8f00; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  .proc-bar span { font-size: 11px; color: #856404; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Input area */
+  .input-area { background: #f0f2f5; padding: 8px 10px; display: flex; align-items: center; gap: 8px; border-top: 1px solid #ddd; }
+  .input-box { flex: 1; background: #fff; border: none; border-radius: 22px; padding: 10px 16px; font-size: 15px; outline: none; font-family: inherit; resize: none; max-height: 100px; overflow-y: auto; line-height: 1.4; }
+  .send-btn { width: 44px; height: 44px; border-radius: 50%; background: #075e54; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; }
+  .send-btn:hover { background: #0a8a77; }
+  .send-btn:disabled { background: #b5b5b5; cursor: not-allowed; }
+  .send-btn svg { fill: #fff; }
+
+  /* Right panel */
+  .side-panel { width: 300px; }
+  .panel-card { background: #202c33; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .panel-title { color: #00a884; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; margin-bottom: 12px; }
+  .panel-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #2a3942; }
+  .panel-row:last-child { border-bottom: none; }
+  .panel-label { color: #8696a0; font-size: 12px; }
+  .panel-value { color: #e9edef; font-size: 13px; font-weight: 500; }
+  .panel-value.hot { color: #ff6b35; }
+  .panel-value.ok { color: #25d366; }
+  .score-bar-wrap { margin-top: 8px; }
+  .score-bar-bg { background: #2a3942; border-radius: 4px; height: 8px; overflow: hidden; }
+  .score-bar-fill { height: 100%; border-radius: 4px; transition: width 1s ease; }
+  .score-num { color: #e9edef; font-size: 22px; font-weight: 700; margin-top: 6px; }
+  .score-label { color: #8696a0; font-size: 11px; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+  .tag.caliente { background: #ff6b3522; color: #ff6b35; }
+  .tag.tibio { background: #fbbf2422; color: #fbbf24; }
+  .tag.frio { background: #3b82f622; color: #3b82f6; }
+  .btn-secondary { width: 100%; padding: 9px; background: transparent; border: 1px solid #2a3942; color: #8696a0; border-radius: 8px; font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.15s; margin-top: 6px; }
+  .btn-secondary:hover { border-color: #00a884; color: #00a884; }
+  .step-list { display: flex; flex-direction: column; gap: 6px; }
+  .step-item { display: flex; gap: 8px; align-items: center; }
+  .step-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .step-dot.done { background: #25d366; }
+  .step-dot.active { background: #fbbf24; animation: pulse 1s infinite; }
+  .step-dot.pending { background: #2a3942; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .step-text { font-size: 11px; color: #8696a0; }
+  .step-text.done { color: #25d366; }
+  .step-text.active { color: #fbbf24; }
+</style>
+</head>
+<body>
+
+<div class="phone-wrap">
+  <!-- Phone -->
+  <div class="phone">
+    <div class="status-bar">
+      <span>9:41</span>
+      <span>●●●●● WiFi 🔋</span>
+    </div>
+    <div class="wa-header">
+      <div class="avatar">N</div>
+      <div class="header-info">
+        <div class="header-name">Nico — Inalcar Usados</div>
+        <div class="header-status" id="agent-status">en línea</div>
+      </div>
+      <div class="header-icons">
+        <svg width="20" height="20" viewBox="0 0 24 24"><path d="M17 12a5 5 0 1 1-10 0 5 5 0 0 1 10 0zm-1.5 5.5a7 7 0 1 0-7-7 7 7 0 0 0 7 7zM3 20l3.5-3.5"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+      </div>
+    </div>
+
+    <div class="chat-area" id="chat-area">
+      <div class="date-sep"><span>Hoy</span></div>
+    </div>
+
+    <!-- Quick replies -->
+    <div class="quick-replies" id="quick-replies"></div>
+
+    <!-- Typing indicator -->
+    <div id="typing-indicator" style="display:none;padding:4px 10px 6px;background:#efeae2;">
+      <div class="typing-row">
+        <div class="typing-bubble">
+          <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Processing bar -->
+    <div class="proc-bar" id="proc-bar" style="display:none;">
+      <div class="spinner"></div>
+      <span id="proc-text">Procesando...</span>
+    </div>
+
+    <!-- Input -->
+    <div class="input-area">
+      <textarea class="input-box" id="user-input" placeholder="Escribe un mensaje" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="send-btn" id="send-btn" onclick="sendMessage()">
+        <svg width="20" height="20" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Side panel -->
+  <div class="side-panel">
+    <div class="panel-card">
+      <div class="panel-title">ESTADO DEL AGENTE</div>
+      <div class="step-list" id="step-list">
+        <div class="step-item"><div class="step-dot pending" id="dot-0"></div><span class="step-text" id="step-0">Conversación inicial</span></div>
+        <div class="step-item"><div class="step-dot pending" id="dot-1"></div><span class="step-text" id="step-1">Validación de identidad</span></div>
+        <div class="step-item"><div class="step-dot pending" id="dot-2"></div><span class="step-text" id="step-2">Consentimiento DICOM</span></div>
+        <div class="step-item"><div class="step-dot pending" id="dot-3"></div><span class="step-text" id="step-3">Score crediticio (Verídico)</span></div>
+        <div class="step-item"><div class="step-dot pending" id="dot-4"></div><span class="step-text" id="step-4">Score de compra</span></div>
+        <div class="step-item"><div class="step-dot pending" id="dot-5"></div><span class="step-text" id="step-5">Agendamiento de cita</span></div>
+      </div>
+    </div>
+
+    <div class="panel-card" id="client-card" style="display:none;">
+      <div class="panel-title">FICHA DEL CLIENTE</div>
+      <div id="client-rows"></div>
+    </div>
+
+    <div class="panel-card" id="score-card" style="display:none;">
+      <div class="panel-title">SCORE DE COMPRA</div>
+      <div class="score-num" id="score-num">—</div>
+      <div class="score-label" id="score-label">calculando...</div>
+      <div class="score-bar-wrap">
+        <div class="score-bar-bg">
+          <div class="score-bar-fill" id="score-bar" style="width:0%;background:#25d366;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-title">ACCIONES</div>
+      <button class="btn-secondary" onclick="clearChat()">↺ Reiniciar demo</button>
+      <button class="btn-secondary" onclick="suggestQuestion('¿Qué SUVs tienen disponibles?')">→ Probar: SUVs disponibles</button>
+      <button class="btn-secondary" onclick="suggestQuestion('¿Tienen bonos de financiamiento con GM Financial?')">→ Probar: Bonos GM Financial</button>
+      <button class="btn-secondary" onclick="suggestQuestion('Busco algo usado bajo $8 millones')">→ Probar: Usado bajo $8M</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SYSTEM_PROMPT = `Eres Nico, el asistente virtual de Inalcar y de Inalco Chevrolet Chile. Representas dos marcas del Grupo Automotriz Inalco con más de 80 años de historia:
+- INALCO CHEVROLET (autos nuevos): inalcochevrolet.cl
+- INALCAR (autos usados/seminuevos multimarca): inalcar.cl
+
+PERSONALIDAD:
+- Hablas en español formal y profesional. Tratas siempre de "usted". Sin modismos ni slang.
+- Eres cálido pero serio, como un ejecutivo de una concesionaria premium chilena.
+- Sin emojis excesivos, máximo 1 por mensaje y solo cuando sea apropiado.
+- Respuestas cortas y directas (máximo 4-5 líneas), formato WhatsApp.
+
+INVENTARIO NUEVOS (inalcochevrolet.cl — precios desde):
+AUTOS: Sail $9.990.000 | Sail Hatchback $9.790.000 | Onix Sedán $13.190.000 | Onix Turbo $16.190.000
+SUVs: Groove $13.290.000 | Tracker $15.190.000 | Captiva XL $17.990.000 | Traverse $49.990.000 | Tahoe $61.400.000+IVA | Suburban $64.700.000+IVA
+PICKUPS: Montana $14.990.000+IVA | Colorado $23.990.000+IVA | Silverado $41.990.000+IVA
+ELÉCTRICOS: Spark EUV $19.990.000 | Captiva EV $28.990.000 | Bolt EUV $23.990.000 | Equinox EV (consultar)
+HÍBRIDOS: disponibles, consultar precio
+
+USADOS (inalcar.cl — multimarca seminuevos):
+Stock amplio: Chevrolet, Ford, Toyota, Kia, Hyundai, Nissan, Peugeot, Dodge, Suzuki, Jeep y más.
+Precios desde $5.990.000. Todos con revisión técnica certificada por Inalcar.
+
+FINANCIAMIENTO GM FINANCIAL:
+- Financiamiento oficial Chevrolet con GM Financial disponible para todos los modelos nuevos.
+- Bonos de financiamiento disponibles (varían por modelo y campaña vigente).
+- Pie mínimo: generalmente desde 20% del valor del vehículo.
+- Plazos: 12 a 60 meses.
+- Tasa preferencial para clientes con buen historial crediticio.
+- Si el cliente no califica para nuevo: ofrecer alternativa en usados Inalcar con financiamiento propio.
+
+FLUJO DE ATENCIÓN:
+1. Saludar y entender qué busca el cliente (tipo de auto, presupuesto, uso).
+2. Recomendar modelos específicos con precio.
+3. Si pregunta por ofertas o bonos: mencionar que varían y que un ejecutivo puede dar el detalle actualizado.
+4. Si no alcanza el presupuesto para nuevo: sugerir alternativa en usados Inalcar.
+5. Si muestra interés concreto: pedir nombre y ofrecer agendar visita.
+
+RESTRICCIONES:
+- Nunca inventar precios exactos de usados (son variables). Indicar "desde $X" o "depende del modelo y año".
+- Nunca prometer aprobación de crédito.
+- Para info muy específica de stock: invitar a visitar o llamar al ejecutivo.
+- Respuestas siempre cortas, máximo 5 líneas, formato WhatsApp.
+
+Al final de CADA respuesta, incluye un bloque JSON oculto así (sin mostrarlo al usuario):
+<meta>{"nombre":null,"interes":null,"presupuesto":null,"tipo":"nuevo|usado|ambos|null","etapa":"explorando|interesado|listo_para_visita","score":0}</meta>
+
+Actualiza los campos cuando obtengas información del cliente. Score 0-100 según probabilidad de compra.`;
+
+let messages = [];
+let clientData = { nombre: null, interes: null, presupuesto: null, tipo: null, etapa: 'explorando', score: 0 };
+let isLoading = false;
+
+const QUICK_STARTS = [
+  "Hola, busco un auto nuevo",
+  "¿Qué SUVs tienen?",
+  "Quiero algo usado bajo $10M",
+  "¿Tienen financiamiento?"
+];
+
+function init() {
+  showQuickReplies(QUICK_STARTS);
+  setStepActive(0);
+}
+
+function showQuickReplies(options) {
+  const qr = document.getElementById('quick-replies');
+  qr.innerHTML = '';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'qr-btn';
+    btn.textContent = opt;
+    btn.onclick = () => { sendText(opt); };
+    qr.appendChild(btn);
+  });
+}
+
+function clearQuickReplies() {
+  document.getElementById('quick-replies').innerHTML = '';
+}
+
+function suggestQuestion(text) {
+  document.getElementById('user-input').value = text;
+  document.getElementById('user-input').focus();
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+function getTime() {
+  const d = new Date();
+  return d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+function addBubble(role, html, time) {
+  const chat = document.getElementById('chat-area');
+  const row = document.createElement('div');
+  row.className = `bubble-row ${role === 'user' ? 'client' : 'bot'}`;
+  const t = time || getTime();
+  const checks = role === 'user' ? '<span class="check">✓✓</span>' : '';
+  row.innerHTML = `<div class="bubble"><div class="bubble-text">${html}</div><div class="bubble-time">${t} ${checks}</div></div>`;
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+  return row;
+}
+
+function formatBotText(text) {
+  return text
+    .replace(/\*([^*]+)\*/g, '<strong>$1</strong>')
+    .replace(/_([^_]+)_/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>');
+}
+
+function setAgentStatus(status) {
+  document.getElementById('agent-status').textContent = status;
+}
+
+function showTyping() {
+  document.getElementById('typing-indicator').style.display = 'block';
+  setAgentStatus('escribiendo...');
+  document.getElementById('chat-area').scrollTop = 99999;
+}
+
+function hideTyping() {
+  document.getElementById('typing-indicator').style.display = 'none';
+}
+
+function showProc(text) {
+  document.getElementById('proc-bar').style.display = 'flex';
+  document.getElementById('proc-text').textContent = text;
+}
+
+function hideProc() {
+  document.getElementById('proc-bar').style.display = 'none';
+}
+
+function setStepDone(i) {
+  document.getElementById('dot-' + i).className = 'step-dot done';
+  document.getElementById('step-' + i).className = 'step-text done';
+}
+
+function setStepActive(i) {
+  document.getElementById('dot-' + i).className = 'step-dot active';
+  document.getElementById('step-' + i).className = 'step-text active';
+}
+
+function updateClientPanel(data) {
+  if (!data) return;
+  Object.assign(clientData, data);
+
+  const card = document.getElementById('client-card');
+  const rows = document.getElementById('client-rows');
+  const fields = [
+    { k: 'nombre', label: 'Nombre' },
+    { k: 'interes', label: 'Interés' },
+    { k: 'presupuesto', label: 'Presupuesto' },
+    { k: 'tipo', label: 'Tipo' },
+    { k: 'etapa', label: 'Etapa' },
+  ];
+  let html = '';
+  let hasData = false;
+  fields.forEach(f => {
+    const v = clientData[f.k];
+    if (v) {
+      hasData = true;
+      html += `<div class="panel-row"><span class="panel-label">${f.label}</span><span class="panel-value">${v}</span></div>`;
+    }
+  });
+  if (hasData) { card.style.display = 'block'; rows.innerHTML = html; }
+
+  if (clientData.score > 0) {
+    document.getElementById('score-card').style.display = 'block';
+    const s = Math.min(clientData.score, 100);
+    document.getElementById('score-num').textContent = s + ' / 100';
+    const label = s >= 75 ? 'CALIENTE 🔥' : s >= 50 ? 'TIBIO 🟡' : 'FRÍO ❄️';
+    const color = s >= 75 ? '#ff6b35' : s >= 50 ? '#fbbf24' : '#3b82f6';
+    document.getElementById('score-label').textContent = label;
+    document.getElementById('score-bar').style.width = s + '%';
+    document.getElementById('score-bar').style.background = color;
+  }
+
+  if (clientData.etapa === 'interesado' || clientData.score >= 40) {
+    setStepDone(0); setStepActive(1);
+  }
+  if (clientData.score >= 60) {
+    setStepDone(0); setStepDone(1); setStepActive(2);
+  }
+  if (clientData.etapa === 'listo_para_visita' || clientData.score >= 75) {
+    setStepDone(0); setStepDone(1); setStepDone(2); setStepDone(3); setStepActive(4);
+  }
+}
+
+function extractMeta(text) {
+  const match = text.match(/<meta>({.*?})<\/meta>/s);
+  if (match) {
+    try { return JSON.parse(match[1]); } catch(e) { return null; }
+  }
+  return null;
+}
+
+function cleanText(text) {
+  return text.replace(/<meta>.*?<\/meta>/s, '').trim();
+}
+
+async function callClaude(userText) {
+  messages.push({ role: 'user', content: userText });
+
+  // Cloudflare Worker proxy — API key vive en Cloudflare, no aquí
+  // Reemplace por su URL real después de deployar
+  const WORKER_URL = 'https://inalcar-proxy.SU-USUARIO.workers.dev';
+  const response = await fetch(WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 600,
+      system: SYSTEM_PROMPT,
+      messages: messages,
+    })
+  });
+
+  const data = await response.json();
+
+  let fullText = '';
+  if (data.content) {
+    data.content.forEach(block => {
+      if (block.type === 'text') fullText += block.text;
+    });
+  }
+
+  messages.push({ role: 'assistant', content: fullText || 'Lo siento, hubo un error. ¿Puedes repetir tu pregunta?' });
+
+  const meta = extractMeta(fullText);
+  const clean = cleanText(fullText);
+  return { text: clean, meta };
+}
+
+function sendMessage() {
+  const input = document.getElementById('user-input');
+  const text = input.value.trim();
+  if (!text || isLoading) return;
+  input.value = '';
+  input.style.height = 'auto';
+  sendText(text);
+}
+
+async function sendText(text) {
+  if (isLoading) return;
+  isLoading = true;
+  clearQuickReplies();
+
+  document.getElementById('send-btn').disabled = true;
+  addBubble('user', text.replace(/\n/g, '<br>'));
+
+  const isSearchQuery = /oferta|bono|descuento|promoción|nuevo|stock|disponible|precio/i.test(text);
+
+  if (isSearchQuery) {
+    showProc('Buscando en inalcochevrolet.cl e inalcar.cl...');
+    await new Promise(r => setTimeout(r, 900));
+    hideProc();
+  }
+
+  showTyping();
+  await new Promise(r => setTimeout(r, 400));
+
+  try {
+    const { text: botText, meta } = await callClaude(text);
+    hideTyping();
+    setAgentStatus('en línea');
+
+    const formatted = formatBotText(botText);
+    addBubble('bot', formatted);
+
+    if (meta) updateClientPanel(meta);
+
+    const followups = getFollowUps(text, meta);
+    if (followups.length) showQuickReplies(followups);
+
+  } catch(err) {
+    hideTyping();
+    setAgentStatus('en línea');
+    addBubble('bot', 'Hubo un problema al conectar. ¿Puedes intentar de nuevo?');
+  }
+
+  isLoading = false;
+  document.getElementById('send-btn').disabled = false;
+}
+
+function getFollowUps(userText, meta) {
+  if (!meta) return [];
+  if (meta.etapa === 'listo_para_visita') return ['Confirmar cita', '¿Cuál es la dirección?', 'Necesito pensarlo más'];
+  if (meta.tipo === 'nuevo') return ['¿Hay bonos disponibles?', '¿Cuánto sería el pie?', 'Ver usados también'];
+  if (meta.tipo === 'usado') return ['¿Tienen financiamiento?', '¿Reciben auto en parte de pago?', 'Ver nuevos también'];
+  if (meta.etapa === 'interesado') return ['¿Tienen financiamiento?', '¿Puedo agendar una visita?', '¿Qué documentos necesito?'];
+  return [];
+}
+
+function clearChat() {
+  messages = [];
+  clientData = { nombre: null, interes: null, presupuesto: null, tipo: null, etapa: 'explorando', score: 0 };
+  document.getElementById('chat-area').innerHTML = '<div class="date-sep"><span>Hoy</span></div>';
+  document.getElementById('client-card').style.display = 'none';
+  document.getElementById('score-card').style.display = 'none';
+  document.getElementById('quick-replies').innerHTML = '';
+  document.getElementById('proc-bar').style.display = 'none';
+  document.getElementById('typing-indicator').style.display = 'none';
+  setAgentStatus('en línea');
+  for (let i = 0; i < 6; i++) {
+    document.getElementById('dot-' + i).className = 'step-dot pending';
+    document.getElementById('step-' + i).className = 'step-text';
+  }
+  init();
+}
+
+init();
+</script>
+</body>
+</html>
