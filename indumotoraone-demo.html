@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo Agente IA — Indumotora One Kia</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#0d1117;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+
+/* BRAND HEADER */
+.brand{text-align:center;margin-bottom:24px}
+.brand-logo{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px}
+.logo-kia{background:#BB162B;color:#fff;font-size:20px;font-weight:700;padding:6px 14px;border-radius:4px;letter-spacing:2px}
+.logo-imo{font-size:22px;font-weight:600;color:#fff;letter-spacing:-0.5px}
+.brand-sub{font-size:13px;color:#666;letter-spacing:1px;text-transform:uppercase}
+
+/* PHONE FRAME */
+.phone-wrap{display:flex;gap:24px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+.phone{width:390px;background:#1a1a1a;border-radius:44px;padding:12px;box-shadow:0 40px 80px rgba(0,0,0,0.6);border:1px solid #2a2a2a}
+.phone-inner{background:#000;border-radius:34px;overflow:hidden;height:720px;display:flex;flex-direction:column;position:relative}
+
+/* STATUS BAR */
+.status-bar{background:#111;padding:12px 20px 8px;display:flex;justify-content:space-between;font-size:11px;color:#888;flex-shrink:0}
+
+/* WA HEADER */
+.wa-header{background:#1f2c34;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.wa-back{color:#aaa;font-size:18px;cursor:pointer}
+.wa-av{width:38px;height:38px;border-radius:50%;background:#BB162B;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;flex-shrink:0}
+.wa-info{flex:1}
+.wa-name{color:#fff;font-size:14px;font-weight:500}
+.wa-status{font-size:11px;color:#8696a0}
+.wa-icons{display:flex;gap:16px;color:#aaa;font-size:16px}
+
+/* MESSAGES */
+.wa-msgs{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:6px;background:#0a1929}
+.wa-msgs::-webkit-scrollbar{width:3px}
+.wa-msgs::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
+.msg{max-width:78%;word-break:break-word;animation:fadeIn 0.25s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.msg.bot{align-self:flex-start}
+.msg.user{align-self:flex-end}
+.msg-bubble{padding:8px 12px;border-radius:10px;font-size:13px;line-height:1.55;position:relative}
+.msg.bot .msg-bubble{background:#1f2c34;color:#e9edef;border-bottom-left-radius:3px}
+.msg.user .msg-bubble{background:#005c4b;color:#e9edef;border-bottom-right-radius:3px}
+.msg-time{font-size:10px;color:#8696a0;text-align:right;margin-top:3px;padding-right:2px}
+.msg.user .msg-time{text-align:right}
+.date-sep{align-self:center;background:#1f2c34;color:#8696a0;font-size:11px;padding:4px 12px;border-radius:8px;margin:8px 0}
+.typing-bubble{background:#1f2c34;padding:10px 16px;border-radius:10px;border-bottom-left-radius:3px;align-self:flex-start;display:none}
+.typing-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#8696a0;margin:0 2px;animation:td 1.2s infinite}
+.typing-dot:nth-child(2){animation-delay:.2s}
+.typing-dot:nth-child(3){animation-delay:.4s}
+@keyframes td{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+
+/* INPUT */
+.wa-input-area{background:#1f2c34;padding:8px 12px;display:flex;align-items:flex-end;gap:8px;flex-shrink:0}
+.wa-attach{color:#8696a0;font-size:22px;cursor:pointer;padding:6px}
+textarea.wa-input{flex:1;background:#2a3942;border:none;border-radius:20px;padding:10px 14px;color:#e9edef;font-family:'DM Sans',sans-serif;font-size:13px;resize:none;outline:none;max-height:100px;min-height:40px;line-height:1.4}
+textarea.wa-input::placeholder{color:#8696a0}
+.wa-send{width:44px;height:44px;border-radius:50%;background:#00a884;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s}
+.wa-send:hover{background:#02c99e}
+.wa-send:disabled{background:#2a3942;cursor:not-allowed}
+.wa-send svg{width:20px;height:20px;fill:#fff}
+
+/* QUICK REPLIES */
+.quick-replies{background:#111;padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0;border-top:1px solid #222}
+.qr{background:#1f2c34;border:1px solid #2a3942;color:#00a884;padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap}
+.qr:hover{background:#BB162B;color:#fff;border-color:#BB162B}
+
+/* INFO PANEL */
+.info-panel{width:300px;color:#ccc}
+.info-card{background:#111;border:1px solid #1e1e1e;border-radius:16px;padding:20px;margin-bottom:16px}
+.info-card h3{font-size:13px;color:#BB162B;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;font-weight:600}
+.info-row{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid #1e1e1e;color:#888}
+.info-row:last-child{border-bottom:none}
+.info-row strong{color:#e9edef;font-weight:500}
+.suc-item{padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px}
+.suc-item:last-child{border-bottom:none}
+.suc-name{color:#fff;font-weight:500;margin-bottom:2px}
+.suc-addr{color:#666;font-size:11px}
+.badge-kia{background:#BB162B;color:#fff;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;display:inline-block;margin-bottom:4px}
+
+@media(max-width:800px){
+  .info-panel{display:none}
+  .phone{width:100%;max-width:390px}
+}
+</style>
+</head>
+<body>
+
+<div class="brand">
+  <div class="brand-logo">
+    <span class="logo-kia">KIA</span>
+    <span class="logo-imo">Indumotora One</span>
+  </div>
+  <div class="brand-sub">Agente IA de ventas — Demo</div>
+</div>
+
+<div class="phone-wrap">
+
+  <!-- PHONE -->
+  <div class="phone">
+    <div class="phone-inner">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>●●●●○ 4G 🔋</span>
+      </div>
+      <div class="wa-header">
+        <span class="wa-back">‹</span>
+        <div class="wa-av">K</div>
+        <div class="wa-info">
+          <div class="wa-name">Kia Indumotora One</div>
+          <div class="wa-status" id="statusTxt">en línea</div>
+        </div>
+        <div class="wa-icons">📹 📞</div>
+      </div>
+
+      <div class="wa-msgs" id="msgs">
+        <div class="date-sep">Hoy</div>
+      </div>
+      <div class="typing-bubble" id="typing">
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+      </div>
+
+      <div class="quick-replies" id="qrs">
+        <button class="qr" onclick="q('Hola, quiero ver el Sportage')">Sportage</button>
+        <button class="qr" onclick="q('Me interesa el EV6 eléctrico')">EV6 Eléctrico</button>
+        <button class="qr" onclick="q('¿Cuánto vale el Soluto?')">Soluto</button>
+        <button class="qr" onclick="q('Quiero agendar un test drive')">Test Drive</button>
+        <button class="qr" onclick="q('¿Tienen financiamiento?')">Financiamiento</button>
+        <button class="qr" onclick="q('Vitacura')">Vitacura</button>
+      </div>
+
+      <div class="wa-input-area">
+        <span class="wa-attach">📎</span>
+        <textarea class="wa-input" id="inp" placeholder="Mensaje" rows="1" onkeydown="hk(event)"></textarea>
+        <button class="wa-send" id="sendBtn" onclick="sf()">
+          <svg viewBox="0 0 24 24"><path d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFO PANEL -->
+  <div class="info-panel">
+    <div class="info-card">
+      <h3>Inventario Kia 2026</h3>
+      <div class="info-row"><span>Morning</span><strong>$10.190.000</strong></div>
+      <div class="info-row"><span>Soluto</span><strong>$9.790.000</strong></div>
+      <div class="info-row"><span>K3</span><strong>$14.990.000</strong></div>
+      <div class="info-row"><span>Sonet</span><strong>$13.990.000</strong></div>
+      <div class="info-row"><span>K3 Cross</span><strong>$15.990.000</strong></div>
+      <div class="info-row"><span>Seltos</span><strong>$16.990.000</strong></div>
+      <div class="info-row"><span>Nueva Carens</span><strong>$18.990.000</strong></div>
+      <div class="info-row"><span>Sportage</span><strong>$23.990.000</strong></div>
+      <div class="info-row"><span>Sportage Híbrido</span><strong>$32.990.000</strong></div>
+      <div class="info-row"><span>Sorento</span><strong>$39.990.000</strong></div>
+      <div class="info-row"><span>Sorento Híbrido</span><strong>$42.990.000</strong></div>
+      <div class="info-row"><span>Carnival</span><strong>$42.990.000</strong></div>
+      <div class="info-row"><span>Carnival Híbrido</span><strong>$52.990.000</strong></div>
+      <div class="info-row"><span>Tasman (pickup)</span><strong>$32.118.100</strong></div>
+      <div class="info-row"><span>Frontier</span><strong>$24.490.000</strong></div>
+      <div class="info-row"><span>EV5 Eléctrico</span><strong>$29.990.000</strong></div>
+      <div class="info-row"><span>EV6 Eléctrico</span><strong>$57.990.000</strong></div>
+      <div class="info-row"><span>EV9 Eléctrico</span><strong>$99.990.000</strong></div>
+    </div>
+    <div class="info-card">
+      <h3>Sucursales</h3>
+      <div class="suc-item">
+        <div class="badge-kia">KIA</div>
+        <div class="suc-name">Lo Barnechea</div>
+        <div class="suc-addr">Av. La Dehesa N° 545 · Lun-Vie 9-19h · Sáb 10-14h</div>
+      </div>
+      <div class="suc-item">
+        <div class="badge-kia">KIA</div>
+        <div class="suc-name">Vitacura</div>
+        <div class="suc-addr">Av. Vitacura N° 7649 · Lun-Vie 9-19h · Sáb 10-14h</div>
+      </div>
+      <div class="suc-item">
+        <div class="badge-kia">KIA</div>
+        <div class="suc-name">Santiago Centro</div>
+        <div class="suc-addr">Av. Santa Rosa N° 455 · Lun-Vie 9-19h · Sáb 10-14h</div>
+      </div>
+      <div class="suc-item">
+        <div class="badge-kia">KIA</div>
+        <div class="suc-name">La Reina</div>
+        <div class="suc-addr">Av. Francisco Bilbao 5459 · Lun-Vie 9-19h · Sáb 10-14h</div>
+      </div>
+    </div>
+    <div class="info-card">
+      <h3>Financiamiento</h3>
+      <div class="info-row"><span>Pie mínimo</span><strong>20%</strong></div>
+      <div class="info-row"><span>Financiera</span><strong>Forum Servicios</strong></div>
+      <div class="info-row"><span>Cuotas hasta</span><strong>60 meses</strong></div>
+      <div class="info-row"><span>Compra Inteligente</span><strong>Disponible</strong></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SYS = `Eres Kia, el asistente de ventas virtual de Indumotora One, concesionario oficial Kia en Chile. Hablas en español formal, tratas de usted al cliente. Eres cálido, entusiasta con los autos y muy conciso. Máximo 3 frases por respuesta. Sin asteriscos ni markdown.
+
+INVENTARIO KIA 2026 — PRECIOS DE LISTA (indumotoraone.cl):
+AUTOMÓVILES: Soluto $9.790.000 | Morning $10.190.000 | K3 $14.990.000
+SUVs: Sonet $13.990.000 | K3 Cross $15.990.000 | Seltos $16.990.000 | Nueva Carens $18.990.000 | Sportage $23.990.000 | Sorento $39.990.000 | Carnival $42.990.000 | Tasman pickup $32.118.100 | Frontier comercial $24.490.000
+HÍBRIDOS: Sportage Híbrido $32.990.000 | Sorento Híbrido $42.990.000 | Carnival Híbrido $52.990.000
+ELÉCTRICOS: EV5 $29.990.000 | EV6 $57.990.000 | EV9 $99.990.000
+USADOS: desde $6.990.000 en indumotoraoneusados.cl
+
+SUCURSALES:
+- Lo Barnechea: Av. La Dehesa 545 (cubre Vitacura, Las Condes, Lo Barnechea)
+- Vitacura: Av. Vitacura 7649 (cubre sector oriente)
+- Santiago Centro: Av. Santa Rosa 455 (cubre Santiago, Matta, San Miguel)
+- La Reina: Av. Francisco Bilbao 5459 (cubre La Reina, Macul, Peñalolén)
+Horario: Lun-Vie 9:00-19:00, Sáb 10:00-14:00. Fono: 600 600 5200
+
+FINANCIAMIENTO: Forum Servicios Financieros, opción Compra Inteligente Maxx (50% pie, 60 cuotas + cuotón final). También financiamiento tradicional desde 20% de pie.
+
+GARANTÍA: 5 años o 150.000 km en vehículos nuevos Kia.
+
+FLUJO TEST DRIVE:
+1. Cuando el cliente quiera agendar, pregunta su comuna
+2. Propone la sucursal más cercana con dirección
+3. Cuando acepta, envía: "Perfecto, le paso el link para agendar con nuestro ejecutivo en sucursal [nombre]: https://calendly.com/jzamorat/30min 📅 ¡Le esperamos!"`;
+
+let hist = [];
+let busy = false;
+
+function now(){return new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})}
+
+function addMsg(txt, cls){
+  const box = document.getElementById('msgs');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + cls;
+  const bub = document.createElement('div');
+  bub.className = 'msg-bubble';
+  bub.innerHTML = txt.replace(/\n/g,'<br>').replace(/(https:\/\/calendly\.com\/\S+)/g,'<a href="$1" target="_blank" style="color:#00a884">$1</a>');
+  const time = document.createElement('div');
+  time.className = 'msg-time';
+  time.textContent = now() + (cls==='bot' ? '' : ' ✓✓');
+  wrap.appendChild(bub);
+  wrap.appendChild(time);
+  box.appendChild(wrap);
+  box.scrollTop = 99999;
+}
+
+function showTyping(v){
+  const ty = document.getElementById('typing');
+  ty.style.display = v ? 'flex' : 'none';
+  document.getElementById('msgs').scrollTop = 99999;
+  document.getElementById('statusTxt').textContent = v ? 'escribiendo...' : 'en línea';
+}
+
+function setUI(loading){
+  busy = loading;
+  document.getElementById('sendBtn').disabled = loading;
+  document.querySelectorAll('.qr').forEach(b => b.disabled = loading);
+  showTyping(loading);
+}
+
+async function send(txt){
+  if(!txt.trim() || busy) return;
+  addMsg(txt, 'user');
+  hist.push({role:'user', content: txt});
+  setUI(true);
+
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 350,
+        system: SYS,
+        messages: hist.slice(-14)
+      })
+    });
+    const data = await r.json();
+    const rep = data.content?.[0]?.text;
+    if(rep){
+      hist.push({role:'assistant', content: rep});
+      addMsg(rep, 'bot');
+    }
+  } catch(e) {
+    addMsg(getLocal(txt), 'bot');
+    hist.push({role:'assistant', content: getLocal(txt)});
+  }
+  setUI(false);
+}
+
+function getLocal(txt){
+  const t = txt.toLowerCase();
+  if(t.includes('sportage') && t.includes('híbrido')) return 'El Sportage Híbrido 2026 está desde $32.990.000, con tecnología HEV que reduce el consumo hasta un 30%. Es uno de nuestros modelos más solicitados. ¿Le gustaría agendar un test drive?';
+  if(t.includes('sportage')) return 'El Kia Sportage 2026 está desde $23.990.000, con 6 airbags, cámara 360°, carplay inalámbrico y pantalla touch 10,25". ¿Le gustaría verlo en alguna de nuestras sucursales?';
+  if(t.includes('ev6')) return 'El Kia EV6 100% eléctrico está desde $57.990.000, con hasta 520 km de autonomía y carga ultrarrápida en 18 minutos al 80%. Una experiencia de conducción completamente distinta. ¿Le agendo un test drive?';
+  if(t.includes('ev5')) return 'El Kia EV5 eléctrico está desde $29.990.000, ideal para quienes quieren dar el salto a la electromovilidad con mayor accesibilidad. ¿Le cuento más o prefiere agendar una visita?';
+  if(t.includes('soluto')) return 'El Kia Soluto 2026 está desde $9.790.000, es nuestro sedán más vendido, con cámara de retroceso y sensor incluidos. Excelente relación precio-equipamiento. ¿Le interesa cotizar?';
+  if(t.includes('morning')) return 'El Kia Morning 2026 está desde $10.190.000, perfecto para ciudad con bajo consumo y fácil estacionamiento. ¿Le gustaría verlo en alguna sucursal?';
+  if(t.includes('seltos')) return 'El Kia Seltos 2026 está desde $16.990.000, con techo panorámico, cluster digital 10,25" y climatizador dual. Un SUV compacto muy completo. ¿Agendamos un test drive?';
+  if(t.includes('sorento')) return 'El Kia Sorento 2026 está desde $39.990.000 en versión convencional, y $42.990.000 en versión Híbrida. Es nuestro SUV familiar más premium, con 7 asientos disponibles. ¿Le interesa conocerlo?';
+  if(t.includes('tasman') || t.includes('pickup')) return 'La Kia Tasman es nuestra pickup 0 km desde $32.118.100, robusta y versátil. También contamos con la Frontier desde $24.490.000 para uso comercial. ¿En qué lo usaría?';
+  if(t.includes('test drive') || t.includes('agendar')) return '¡Con gusto! Para asignarle al ejecutivo más cercano, ¿en qué comuna se encuentra usted?';
+  if(t.includes('vitacura') || t.includes('las condes')) return 'Le sugiero nuestra sucursal de Vitacura, en Av. Vitacura 7649. ¿Le parece bien esa ubicación para su test drive?';
+  if(t.includes('santiago') || t.includes('centro') || t.includes('matta')) return 'Le sugiero nuestra sucursal de Santiago Centro, en Av. Santa Rosa 455. ¿Le parece bien?';
+  if(t.includes('la reina') || t.includes('macul') || t.includes('peñalolén')) return 'Le sugiero nuestra sucursal de La Reina, en Av. Francisco Bilbao 5459. ¿Le parece bien esa ubicación?';
+  if(t.includes('sí') || t.includes('si') || t.includes('perfecto') || t.includes('bien')) return 'Perfecto, le paso el link para agendar con nuestro ejecutivo: https://calendly.com/jzamorat/30min 📅 ¡Le esperamos en Indumotora One!';
+  if(t.includes('financiamiento') || t.includes('crédito')) return 'Trabajamos con Forum Servicios Financieros. La opción Compra Inteligente Maxx permite cuotas más bajas con un cuotón final, desde 20% de pie y hasta 60 meses. ¿Le hago una simulación?';
+  if(t.includes('garantía') || t.includes('garantia')) return 'Todos nuestros Kia nuevos tienen 5 años o 150.000 km de garantía, lo mejor del segmento. ¿Tiene alguna otra consulta?';
+  if(t.includes('eléctrico') || t.includes('electrico')) return 'Tenemos 3 modelos eléctricos: EV5 desde $29.990.000, EV6 desde $57.990.000 y EV9 desde $99.990.000. ¿Por cuál tiene más interés?';
+  return 'Bienvenido a Indumotora One, concesionario oficial Kia. ¿Qué modelo le interesa conocer hoy?';
+}
+
+function q(t){ send(t); }
+function sf(){
+  const i = document.getElementById('inp');
+  const t = i.value.trim();
+  if(t){ send(t); i.value=''; i.style.height='auto'; }
+}
+function hk(e){
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sf();}
+  const ta=e.target; ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,100)+'px';
+}
+
+// Mensaje de bienvenida automático
+setTimeout(()=>{
+  addMsg('¡Bienvenido a Indumotora One! 🚗\n\nSoy Kia, su asistente de ventas virtual. Estoy aquí para ayudarle a encontrar el Kia perfecto para usted, ya sea en nuestras 4 sucursales en Santiago.\n\n¿Qué modelo le interesa conocer hoy?', 'bot');
+  hist.push({role:'assistant', content:'¡Bienvenido a Indumotora One! Soy Kia, su asistente de ventas virtual. ¿Qué modelo le interesa conocer hoy?'});
+}, 600);
+</script>
+</body>
+</html>
