@@ -1,0 +1,20 @@
+name = "inalcar-cooling"
+main = "cooling-worker.js"
+compatibility_date = "2025-01-01"
+
+# Corre cada 30 minutos. Ajustar según qué tan rápido quieran reaccionar
+# (mínimo práctico razonable: 15-30 min; correr cada minuto no aporta,
+# el cooling se mueve en horas).
+[triggers]
+crons = ["*/30 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "inalcar-leads"
+database_id = "REEMPLAZAR-CON-EL-ID-QUE-ENTREGA-wrangler-d1-create"
+
+# Secrets (NO van aquí, se configuran con `wrangler secret put`):
+#   WHATSAPP_TOKEN
+#   WHATSAPP_PHONE_NUMBER_ID
+#   EXEC_PHONE
+#   TRACK_SECRET

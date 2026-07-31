@@ -104,6 +104,12 @@
   .tag.caliente { background: #ff6b3522; color: #ff6b35; }
   .tag.tibio { background: #fbbf2422; color: #fbbf24; }
   .tag.frio { background: #3b82f622; color: #3b82f6; }
+  .tag.congelado { background: #64748b22; color: #94a3b8; }
+  .cooling-action { color: #8696a0; font-size: 11px; margin-top: 10px; line-height: 1.5; padding-top: 10px; border-top: 1px solid #2a3942; }
+  .cooling-action b { color: #e9edef; }
+  .sim-row { display: flex; gap: 6px; margin-top: 10px; }
+  .sim-btn { flex: 1; padding: 6px 4px; background: transparent; border: 1px solid #2a3942; color: #8696a0; border-radius: 6px; font-size: 10px; cursor: pointer; font-family: inherit; }
+  .sim-btn:hover { border-color: #00a884; color: #00a884; }
   .btn-secondary { width: 100%; padding: 9px; background: transparent; border: 1px solid #2a3942; color: #8696a0; border-radius: 8px; font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.15s; margin-top: 6px; }
   .btn-secondary:hover { border-color: #00a884; color: #00a884; }
   .step-list { display: flex; flex-direction: column; gap: 6px; }
@@ -200,6 +206,23 @@
       </div>
     </div>
 
+    <div class="panel-card" id="cooling-card" style="display:none;">
+      <div class="panel-title">COOLING SCORE</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span class="score-num" id="cooling-num" style="font-size:20px;">—</span>
+        <span class="tag" id="cooling-tag"></span>
+      </div>
+      <div class="score-bar-wrap">
+        <div class="score-bar-bg"><div class="score-bar-fill" id="cooling-bar" style="width:0%;"></div></div>
+      </div>
+      <div class="cooling-action" id="cooling-action"></div>
+      <div class="sim-row">
+        <button class="sim-btn" onclick="simulateInactivity(6)">+6h sin resp.</button>
+        <button class="sim-btn" onclick="simulateInactivity(24)">+24h</button>
+        <button class="sim-btn" onclick="simulateInactivity(72)">+72h</button>
+      </div>
+    </div>
+
     <div class="panel-card">
       <div class="panel-title">ACCIONES</div>
       <button class="btn-secondary" onclick="clearChat()">↺ Reiniciar demo</button>
@@ -261,6 +284,80 @@ Actualiza los campos cuando obtengas información del cliente. Score 0-100 segú
 let messages = [];
 let clientData = { nombre: null, interes: null, presupuesto: null, tipo: null, etapa: 'explorando', score: 0 };
 let isLoading = false;
+
+// ---- Cooling score (mismo cálculo que worker/cooling-worker.js) ----------
+// En el navegador no se puede esperar horas reales durante una demo, así que
+// "horasSimuladas" permite adelantar el reloj con los botones de la UI.
+const SESSION_ID = 'demo-' + Math.random().toString(36).slice(2, 10);
+const TRACK_URL = 'https://inalcar-cooling.SU-USUARIO.workers.dev/track'; // reemplazar tras desplegar worker/
+const GRACE_HOURS = 2, DECAY_PER_HOUR = 3, MAX_DECAY = 85, MAX_ENGAGEMENT_BOOST = 15;
+let interacciones = 0;
+let ultimaInteraccion = Date.now();
+let horasSimuladas = 0;
+let scoreMax = 0;
+
+function coolingScore({ scoreCompra, horasInactivo, interacciones, agendoVisita }) {
+  if (agendoVisita) return 100;
+  const engagementBoost = Math.min(interacciones * 1.5, MAX_ENGAGEMENT_BOOST);
+  const decay = horasInactivo > GRACE_HOURS ? Math.min((horasInactivo - GRACE_HOURS) * DECAY_PER_HOUR, MAX_DECAY) : 0;
+  return Math.max(0, Math.min(100, Math.round(scoreCompra + engagementBoost - decay)));
+}
+
+function coolingTier(score) {
+  if (score >= 70) return 'CALIENTE';
+  if (score >= 40) return 'TIBIO';
+  if (score >= 15) return 'FRIO';
+  return 'CONGELADO';
+}
+
+const COOLING_ACCION = {
+  CALIENTE: 'Lead activo — el ejecutivo debe dar seguimiento ahora.',
+  TIBIO: 'Si pasan ≥6h sin respuesta: <b>automatización enviaría recordatorio al cliente.</b>',
+  FRIO: 'Si el lead llegó a ser bueno (score ≥60): <b>automatización alertaría al ejecutivo</b> para llamada directa.',
+  CONGELADO: '<b>Automatización enviaría mensaje final de reactivación</b> y archivaría el lead.',
+};
+
+function updateCoolingPanel() {
+  const horasInactivo = (Date.now() - ultimaInteraccion) / 3_600_000 + horasSimuladas;
+  const agendoVisita = clientData.etapa === 'listo_para_visita';
+  const score = coolingScore({ scoreCompra: clientData.score, horasInactivo, interacciones, agendoVisita });
+  const tier = coolingTier(score);
+  const colorByTier = { CALIENTE: '#ff6b35', TIBIO: '#fbbf24', FRIO: '#3b82f6', CONGELADO: '#94a3b8' };
+
+  document.getElementById('cooling-card').style.display = 'block';
+  document.getElementById('cooling-num').textContent = score + ' / 100';
+  document.getElementById('cooling-tag').textContent = tier;
+  document.getElementById('cooling-tag').className = 'tag ' + tier.toLowerCase();
+  document.getElementById('cooling-bar').style.width = score + '%';
+  document.getElementById('cooling-bar').style.background = colorByTier[tier];
+  document.getElementById('cooling-action').innerHTML = COOLING_ACCION[tier];
+}
+
+function simulateInactivity(hours) {
+  horasSimuladas += hours;
+  updateCoolingPanel();
+}
+
+async function trackLead() {
+  try {
+    await fetch(TRACK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: SESSION_ID,
+        nombre: clientData.nombre,
+        interes: clientData.interes,
+        presupuesto: clientData.presupuesto,
+        tipo: clientData.tipo,
+        etapa: clientData.etapa,
+        score: clientData.score,
+        now: Date.now(),
+      }),
+    });
+  } catch (e) {
+    // Best-effort: el worker de cooling puede no estar desplegado en este demo.
+  }
+}
 
 const QUICK_STARTS = [
   "Hola, busco un auto nuevo",
@@ -405,6 +502,11 @@ function updateClientPanel(data) {
   if (clientData.etapa === 'listo_para_visita' || clientData.score >= 75) {
     setStepDone(0); setStepDone(1); setStepDone(2); setStepDone(3); setStepActive(4);
   }
+
+  scoreMax = Math.max(scoreMax, clientData.score);
+  horasSimuladas = 0; // llegó un mensaje real del cliente: el lead se "reactiva"
+  updateCoolingPanel();
+  trackLead();
 }
 
 function extractMeta(text) {
@@ -466,6 +568,9 @@ async function sendText(text) {
   isLoading = true;
   clearQuickReplies();
 
+  interacciones++;
+  ultimaInteraccion = Date.now();
+
   document.getElementById('send-btn').disabled = true;
   addBubble('user', text.replace(/\n/g, '<br>'));
 
@@ -515,9 +620,14 @@ function getFollowUps(userText, meta) {
 function clearChat() {
   messages = [];
   clientData = { nombre: null, interes: null, presupuesto: null, tipo: null, etapa: 'explorando', score: 0 };
+  interacciones = 0;
+  ultimaInteraccion = Date.now();
+  horasSimuladas = 0;
+  scoreMax = 0;
   document.getElementById('chat-area').innerHTML = '<div class="date-sep"><span>Hoy</span></div>';
   document.getElementById('client-card').style.display = 'none';
   document.getElementById('score-card').style.display = 'none';
+  document.getElementById('cooling-card').style.display = 'none';
   document.getElementById('quick-replies').innerHTML = '';
   document.getElementById('proc-bar').style.display = 'none';
   document.getElementById('typing-indicator').style.display = 'none';
