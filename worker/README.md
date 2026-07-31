@@ -27,6 +27,50 @@ La fórmula y los umbrales están en `cooling-worker.js` (constantes `GRACE_HOUR
 de partida razonable, no un valor definitivo; conviene ajustarlos con datos
 reales una vez que haya volumen de leads.
 
+## Agendamiento (Calendly)
+
+Cuando el lead agenda una visita de verdad en Calendly, `POST /calendly-webhook`
+recibe el evento `invitee.created`, marca `agendo_visita = 1` en D1 y el lead
+deja de recibir recordatorios/alertas automáticas (queda "convertido"). Si
+cancela (`invitee.canceled`), vuelve a quedar activo para el cooling.
+
+Para asociar la reserva de Calendly con el lead correcto, el frontend abre el
+popup con `?utm_content=<lead_id>` (ver `openCalendly()` en `index.html`) —
+Calendly reenvía ese valor en `payload.tracking.utm_content` dentro del webhook.
+
+### Configurar la webhook subscription en Calendly
+
+Requiere plan Calendly con acceso a la API (Standard o superior) y un
+Personal Access Token (Calendly → Integrations → API & Webhooks).
+
+```bash
+curl -X POST https://api.calendly.com/webhook_subscriptions \
+  -H "Authorization: Bearer $CALENDLY_PERSONAL_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://inalcar-cooling.SU-USUARIO.workers.dev/calendly-webhook",
+    "events": ["invitee.created", "invitee.canceled"],
+    "organization": "https://api.calendly.com/organizations/SU-ORG-UUID",
+    "scope": "organization"
+  }'
+```
+
+La respuesta trae `signing_key` — guardarlo como secret:
+
+```bash
+npx wrangler secret put CALENDLY_WEBHOOK_SECRET
+```
+
+### Configurar la URL del event type en el demo
+
+En `index.html` / `inalcar-agente-demo.html`, reemplazar:
+
+```js
+const CALENDLY_URL = 'https://calendly.com/SU-USUARIO/visita-inalcar';
+```
+
+por la URL real del event type de agendamiento de visitas.
+
 ## Requisitos para desplegar
 
 - Cuenta Cloudflare con Workers + D1 habilitado.

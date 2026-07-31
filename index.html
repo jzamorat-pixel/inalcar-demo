@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inalcar — Agente WhatsApp IA</title>
+<link href="https://assets.calendly.com/assets/external/widget.css" rel="stylesheet">
+<script src="https://assets.calendly.com/assets/external/widget.js" async></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #111b21; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
@@ -223,6 +225,15 @@
       </div>
     </div>
 
+    <div class="panel-card" id="calendly-card" style="display:none;">
+      <div class="panel-title">AGENDAMIENTO</div>
+      <div class="panel-row" id="calendly-status-row" style="display:none;">
+        <span class="panel-label">Visita</span>
+        <span class="panel-value ok" id="calendly-status-value">Agendada ✓</span>
+      </div>
+      <button class="btn-secondary" id="calendly-btn" style="margin-top:0;border-color:#25d366;color:#25d366;" onclick="openCalendly()">📅 Agendar visita</button>
+    </div>
+
     <div class="panel-card">
       <div class="panel-title">ACCIONES</div>
       <button class="btn-secondary" onclick="clearChat()">↺ Reiniciar demo</button>
@@ -319,7 +330,7 @@ const COOLING_ACCION = {
 
 function updateCoolingPanel() {
   const horasInactivo = (Date.now() - ultimaInteraccion) / 3_600_000 + horasSimuladas;
-  const agendoVisita = clientData.etapa === 'listo_para_visita';
+  const agendoVisita = clientData.etapa === 'listo_para_visita' || visitaAgendada;
   const score = coolingScore({ scoreCompra: clientData.score, horasInactivo, interacciones, agendoVisita });
   const tier = coolingTier(score);
   const colorByTier = { CALIENTE: '#ff6b35', TIBIO: '#fbbf24', FRIO: '#3b82f6', CONGELADO: '#94a3b8' };
@@ -337,6 +348,35 @@ function simulateInactivity(hours) {
   horasSimuladas += hours;
   updateCoolingPanel();
 }
+
+// ---- Agendamiento (Calendly) ----------------------------------------------
+// Reemplazar por la URL real del event type, ej: https://calendly.com/tu-usuario/visita-inalcar
+const CALENDLY_URL = 'https://calendly.com/SU-USUARIO/visita-inalcar';
+let visitaAgendada = false;
+
+function openCalendly() {
+  if (typeof Calendly === 'undefined') {
+    alert('No se pudo cargar el widget de Calendly (revisa conexión o CALENDLY_URL).');
+    return;
+  }
+  Calendly.initPopupWidget({
+    // utm_content lleva el SESSION_ID para que el webhook de Calendly pueda
+    // asociar la reserva con este lead (ver worker/cooling-worker.js).
+    url: `${CALENDLY_URL}?utm_content=${SESSION_ID}`,
+    prefill: clientData.nombre ? { name: clientData.nombre } : undefined,
+  });
+}
+
+window.addEventListener('message', (e) => {
+  if (!e.data || typeof e.data.event !== 'string' || !e.data.event.startsWith('calendly.')) return;
+  if (e.data.event === 'calendly.event_scheduled') {
+    visitaAgendada = true;
+    document.getElementById('calendly-status-row').style.display = 'flex';
+    document.getElementById('calendly-btn').textContent = '📅 Reagendar visita';
+    setStepDone(0); setStepDone(1); setStepDone(2); setStepDone(3); setStepDone(4); setStepDone(5);
+    updateCoolingPanel(); // agendo_visita también se recalcula server-side vía webhook
+  }
+});
 
 async function trackLead() {
   try {
@@ -507,6 +547,10 @@ function updateClientPanel(data) {
   horasSimuladas = 0; // llegó un mensaje real del cliente: el lead se "reactiva"
   updateCoolingPanel();
   trackLead();
+
+  if (clientData.etapa === 'listo_para_visita' || clientData.score >= 75) {
+    document.getElementById('calendly-card').style.display = 'block';
+  }
 }
 
 function extractMeta(text) {
@@ -624,10 +668,14 @@ function clearChat() {
   ultimaInteraccion = Date.now();
   horasSimuladas = 0;
   scoreMax = 0;
+  visitaAgendada = false;
   document.getElementById('chat-area').innerHTML = '<div class="date-sep"><span>Hoy</span></div>';
   document.getElementById('client-card').style.display = 'none';
   document.getElementById('score-card').style.display = 'none';
   document.getElementById('cooling-card').style.display = 'none';
+  document.getElementById('calendly-card').style.display = 'none';
+  document.getElementById('calendly-status-row').style.display = 'none';
+  document.getElementById('calendly-btn').textContent = '📅 Agendar visita';
   document.getElementById('quick-replies').innerHTML = '';
   document.getElementById('proc-bar').style.display = 'none';
   document.getElementById('typing-indicator').style.display = 'none';

@@ -13,8 +13,16 @@
  *   WHATSAPP_PHONE_NUMBER_ID  phone_number_id del número de WhatsApp Business
  *   EXEC_PHONE                número (E.164) del ejecutivo que recibe alertas
  *   TRACK_SECRET              secreto compartido para autenticar el POST /track
+ *   CALENDLY_WEBHOOK_SECRET   signing_key que entrega Calendly al crear la webhook subscription
  *
  * Requiere (wrangler.toml): binding D1 "DB" + cron trigger.
+ *
+ * POST /calendly-webhook recibe invitee.created / invitee.canceled de Calendly
+ * y cierra el loop del cooling: cuando alguien agenda de verdad, el lead
+ * queda marcado agendo_visita=1 y deja de recibir recordatorios/alertas
+ * automáticas. Requiere que el frontend haya abierto Calendly con
+ * ?utm_content=<lead_id> (ver index.html openCalendly()) para poder
+ * asociar la reserva con el lead correcto.
  */
 
 // ---- Fórmula de cooling score --------------------------------------------
@@ -140,6 +148,58 @@ async function handleTrack(request, env) {
   return Response.json({ ok: true, created: false });
 }
 
+// ---- Calendly: webhook de agendamiento -------------------------------------
+
+function hex(buf) {
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function verifyCalendlySignature(rawBody, signatureHeader, secret) {
+  if (!signatureHeader) return false;
+  const parts = Object.fromEntries(signatureHeader.split(',').map(p => p.split('=')));
+  if (!parts.t || !parts.v1) return false;
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sigBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${parts.t}.${rawBody}`));
+  return hex(sigBuf) === parts.v1;
+}
+
+async function handleCalendlyWebhook(request, env) {
+  const rawBody = await request.text();
+  const valid = await verifyCalendlySignature(
+    rawBody, request.headers.get('Calendly-Webhook-Signature'), env.CALENDLY_WEBHOOK_SECRET
+  );
+  if (!valid) return new Response('Invalid signature', { status: 401 });
+
+  const { event: eventType, payload = {} } = JSON.parse(rawBody);
+  const leadId = payload.tracking && payload.tracking.utm_content;
+  if (!leadId) return Response.json({ ok: true, skipped: 'sin utm_content, no se pudo asociar a un lead' });
+
+  const now = Date.now();
+
+  if (eventType === 'invitee.created') {
+    await env.DB.prepare(`
+      UPDATE leads SET agendo_visita = 1, etapa = 'listo_para_visita',
+        calendly_invitee_uri = ?, calendly_email = ?, cooling_score = 100,
+        temperatura = 'CALIENTE', updated_at = ?
+      WHERE id = ?
+    `).bind(payload.uri || null, payload.email || null, now, leadId).run();
+    await env.DB.prepare(`
+      INSERT INTO lead_actions (lead_id, tier, accion, detalle, created_at) VALUES (?, 'CALIENTE', 'visita_agendada', ?, ?)
+    `).bind(leadId, payload.uri || '', now).run();
+  } else if (eventType === 'invitee.canceled') {
+    await env.DB.prepare(`
+      UPDATE leads SET agendo_visita = 0, updated_at = ? WHERE id = ? AND calendly_invitee_uri = ?
+    `).bind(now, leadId, payload.uri || null).run();
+    await env.DB.prepare(`
+      INSERT INTO lead_actions (lead_id, tier, accion, detalle, created_at) VALUES (?, 'TIBIO', 'visita_cancelada', ?, ?)
+    `).bind(leadId, payload.uri || '', now).run();
+  }
+
+  return Response.json({ ok: true });
+}
+
 // ---- Cron: evalúa todos los leads activos y dispara acciones --------------
 
 async function evaluateLeads(env, now) {
@@ -206,6 +266,9 @@ export default {
     const url = new URL(request.url);
     if (request.method === 'POST' && url.pathname === '/track') {
       return handleTrack(request, env);
+    }
+    if (request.method === 'POST' && url.pathname === '/calendly-webhook') {
+      return handleCalendlyWebhook(request, env);
     }
     if (request.method === 'GET' && url.pathname === '/health') {
       return Response.json({ ok: true });

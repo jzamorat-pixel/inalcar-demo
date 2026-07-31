@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS leads (
   temperatura        TEXT DEFAULT 'CALIENTE', -- CALIENTE|TIBIO|FRIO|CONGELADO
   ultima_accion_tier TEXT,                  -- último tier para el que ya se disparó una acción (evita duplicados)
   archivado          INTEGER DEFAULT 0,
+  calendly_invitee_uri TEXT,                -- uri del invitee en Calendly, si agendó
+  calendly_email     TEXT,                  -- email que dejó en Calendly (el chat no lo captura)
   updated_at         INTEGER
 );
 
